@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cloudera Anomaly Dashboard</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f4f4f9;
+        padding: 20px;
+        color: #333;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      /* Header */
+      header {
+        background: #2c3e50;
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+      .badge {
+        background: #e74c3c;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+
+      /* Cards */
+      .card {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+        text-align: center;
+      }
+      .big-number {
+        font-size: 4em;
+        font-weight: bold;
+        color: #e74c3c;
+        margin: 10px 0;
+      }
+      .label {
+        color: #7f8c8d;
+        font-size: 1.2em;
+      }
+
+      /* Table */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      th {
+        background: #34495e;
+        color: white;
+        padding: 15px;
+        text-align: left;
+      }
+      td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #ddd;
+      }
+      tr:hover {
+        background-color: #f1f1f1;
+      }
+
+      /* Status codes */
+      .status-200 {
+        color: green;
+        font-weight: bold;
+      }
+      .status-404 {
+        color: orange;
+        font-weight: bold;
+      }
+      .status-500 {
+        color: red;
+        font-weight: bold;
+      }
+
+      /* Loading */
+      #loading {
+        display: none;
+        color: #666;
+        font-style: italic;
+      }
+      button {
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+      }
+      button:hover {
+        background: #2980b9;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🛡️ Détection d'Intrusion Big Data</h1>
+        <div>
+          <span id="api-status" class="badge" style="background: #f39c12"
+            >Connexion...</span
+          >
+        </div>
+      </header>
+
+      <div class="card">
+        <div class="label">Menaces Détectées (Total)</div>
+        <div id="total-count" class="big-number">-</div>
+        <button onclick="loadData()">🔄 Rafraîchir les données</button>
+        <p id="loading">Chargement en cours...</p>
+      </div>
+
+      <h3>🚨 Top 20 Dernières Anomalies Critiques</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>IP Attaquant</th>
+            <th>Date / Heure</th>
+            <th>Score IA</th>
+            <th>Temps Réponse</th>
+            <th>Code HTTP</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+
+    <script>
+      const API_URL = "http://localhost:5000";
+
+      function loadData() {
+        document.getElementById("loading").style.display = "block";
+
+        // 1. Récupérer le compteur total
+        fetch(API_URL + "/api/stats")
+          .then((response) => response.json())
+          .then((data) => {
+            document.getElementById("total-count").innerText =
+              data.total_anomalies;
+            document.getElementById("api-status").innerText =
+              "API Connectée ✅";
+            document.getElementById("api-status").style.backgroundColor =
+              "#27ae60";
+          })
+          .catch((err) => {
+            console.error("Erreur Stats:", err);
+            document.getElementById("total-count").innerText = "Err";
+            document.getElementById("api-status").innerText = "Erreur API ❌";
+          });
+
+        // 2. Récupérer la liste des anomalies
+        fetch(API_URL + "/api/anomalies")
+          .then((response) => response.json())
+          .then((data) => {
+            const tbody = document.getElementById("rows");
+            tbody.innerHTML = ""; // Vider la table
+
+            data.forEach((item) => {
+              const row = `<tr>
+                            <td><strong>${item.ip}</strong></td>
+                            <td>${item.time}</td>
+                            <td><span style="color:red; font-weight:bold">${item.score.toFixed(
+                              4
+                            )}</span></td>
+                            <td>${item.resp_time} ms</td>
+                            <td class="status-${item.status}">${
+                item.status
+              }</td>
+                        </tr>`;
+              tbody.innerHTML += row;
+            });
+            document.getElementById("loading").style.display = "none";
+          })
+          .catch((err) => {
+            console.error("Erreur Liste:", err);
+          });
+      }
+
+      // Charger au démarrage
+      window.onload = loadData;
+
+      // Rafraîchir toutes les 10 secondes
+      setInterval(loadData, 10000);
+    </script>
+  </body>
+</html>
